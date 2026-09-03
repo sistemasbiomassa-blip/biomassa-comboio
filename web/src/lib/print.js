@@ -7,7 +7,7 @@ const CENTRALIZAR = ESC + 'a' + '\x01';
 const ALINHAR_ESQUERDA = ESC + 'a' + '\x00';
 
 // Impressora 58mm imprime no maximo 384 pontos de largura.
-const LARGURA_LOGO_PONTOS = 256;
+const LARGURA_LOGO_PONTOS = 160;
 
 function byteParaChar(n) {
   return String.fromCharCode(n & 0xff);
