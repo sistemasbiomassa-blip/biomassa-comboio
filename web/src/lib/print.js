@@ -59,7 +59,7 @@ async function montarComandoLogo(url) {
     byteParaChar(larguraBytes) + byteParaChar(larguraBytes >> 8) +
     byteParaChar(altura) + byteParaChar(altura >> 8);
 
-  return CENTRALIZAR + cabecalho + dados + ALINHAR_ESQUERDA + '\n';
+  return CENTRALIZAR + cabecalho + dados + ALINHAR_ESQUERDA + '\n\n';
 }
 
 function textoParaBytes(texto) {
