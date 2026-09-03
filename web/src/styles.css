@@ -1,0 +1,115 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.tela {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 16px 80px;
+}
+
+h1 {
+  font-size: 1.25rem;
+  margin-bottom: 4px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.form input,
+.form select {
+  font-size: 1rem;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+}
+
+.form fieldset {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+}
+
+.form .radio {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.form button {
+  margin-top: 8px;
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  background: #0f172a;
+  border: none;
+  border-radius: 8px;
+}
+
+.fazenda-fixa {
+  color: #334155;
+}
+
+.status {
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.aviso {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.lista-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.cartao-feed {
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+  font-size: 0.9rem;
+}
+
+.cartao-linha-topo {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.link-trocar {
+  display: block;
+  margin: 24px auto 0;
+  background: none;
+  border: none;
+  color: #64748b;
+  text-decoration: underline;
+  font-size: 0.8rem;
+}

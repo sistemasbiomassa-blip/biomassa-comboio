@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Teste impressora Bluetooth</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 16px; max-width: 480px; margin: 0 auto; background: #f1f5f9; }
+  button { display: block; width: 100%; padding: 14px; font-size: 1rem; font-weight: 700; margin: 10px 0; border: none; border-radius: 8px; background: #0f172a; color: white; }
+  button:disabled { background: #94a3b8; }
+  pre { background: #0f172a; color: #4ade80; padding: 10px; border-radius: 8px; font-size: 0.75rem; white-space: pre-wrap; word-break: break-all; max-height: 50vh; overflow-y: auto; }
+</style>
+</head>
+<body>
+  <h1>Teste impressora Bluetooth</h1>
+  <p>1. Conectar impressora &rarr; 2. Enviar teste. Acompanhe o log abaixo.</p>
+
+  <button id="btnConectar">1. Conectar impressora (mostrar todos)</button>
+  <button id="btnConectarFiltrado">1b. Conectar filtrando por servico conhecido</button>
+  <button id="btnEnviar" disabled>2. Enviar teste de impressao</button>
+  <button id="btnDesconectar" disabled>Desconectar</button>
+
+  <pre id="log"></pre>
+
+<script>
+var logEl = document.getElementById('log');
+function log(msg) {
+  logEl.textContent += msg + '\n';
+  logEl.scrollTop = logEl.scrollHeight;
+  console.log(msg);
+}
+
+// UUIDs comuns em impressoras termicas baratas / modulos serial BLE.
+// Listamos varios como optionalServices para conseguir enxergar o que
+// o aparelho realmente expoe (nao ha padrao unico entre fabricantes).
+var SERVICOS_CANDIDATOS = [
+  '000018f0-0000-1000-8000-00805f9b34fb',
+  '0000ff00-0000-1000-8000-00805f9b34fb',
+  '0000ffe0-0000-1000-8000-00805f9b34fb',
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+  '0000fee7-0000-1000-8000-00805f9b34fb',
+  '0000fff0-0000-1000-8000-00805f9b34fb'
+];
+
+var device = null;
+var caracteristicaEscrita = null;
+
+document.getElementById('btnConectar').addEventListener('click', function () { conectar(false); });
+document.getElementById('btnConectarFiltrado').addEventListener('click', function () { conectar(true); });
+document.getElementById('btnEnviar').addEventListener('click', enviarTeste);
+document.getElementById('btnDesconectar').addEventListener('click', function () {
+  if (device && device.gatt.connected) device.gatt.disconnect();
+});
+
+async function conectar(filtrado) {
+  logEl.textContent = '';
+  if (!navigator.bluetooth) {
+    log('ERRO: este navegador nao suporta Web Bluetooth (use Chrome no Android).');
+    return;
+  }
+
+  try {
+    log('Abrindo seletor de dispositivos Bluetooth...');
+    var opcoes = filtrado
+      ? { filters: SERVICOS_CANDIDATOS.map(function (u) { return { services: [u] }; }), optionalServices: SERVICOS_CANDIDATOS }
+      : { acceptAllDevices: true, optionalServices: SERVICOS_CANDIDATOS };
+    device = await navigator.bluetooth.requestDevice(opcoes);
+    log('Dispositivo selecionado: ' + device.name + ' (' + device.id + ')');
+
+    device.addEventListener('gattserverdisconnected', function () {
+      log('Desconectado.');
+      document.getElementById('btnEnviar').disabled = true;
+      document.getElementById('btnDesconectar').disabled = true;
+    });
+
+    log('Conectando ao GATT server...');
+    var server = await device.gatt.connect();
+    log('Conectado. Buscando servicos...');
+
+    var servicos = await server.getPrimaryServices();
+    log('Servicos encontrados: ' + servicos.length);
+
+    for (var i = 0; i < servicos.length; i++) {
+      var servico = servicos[i];
+      log('Servico: ' + servico.uuid);
+      var caracteristicas = await servico.getCharacteristics();
+      for (var j = 0; j < caracteristicas.length; j++) {
+        var c = caracteristicas[j];
+        var props = Object.keys(c.properties).filter(function (p) { return c.properties[p]; });
+        log('  Caracteristica: ' + c.uuid + ' [' + props.join(', ') + ']');
+        if (!caracteristicaEscrita && (c.properties.write || c.properties.writeWithoutResponse)) {
+          caracteristicaEscrita = c;
+        }
+      }
+    }
+
+    if (caracteristicaEscrita) {
+      log('');
+      log('>>> Caracteristica de escrita escolhida: ' + caracteristicaEscrita.uuid);
+      document.getElementById('btnEnviar').disabled = false;
+    } else {
+      log('');
+      log('Nenhuma caracteristica com permissao de escrita foi encontrada nos servicos listados.');
+      log('Pode ser que a impressora use um servico fora da lista de optionalServices deste teste — me avise os nomes/UUIDs acima.');
+    }
+    document.getElementById('btnDesconectar').disabled = false;
+  } catch (err) {
+    log('ERRO: ' + err.message);
+  }
+}
+
+function montarComandoTeste() {
+  var texto =
+    '\x1B\x40' +                          // inicializa impressora
+    'BIOMASSA CHAPARINI\n' +
+    'Teste de impressao\n' +
+    new Date().toLocaleString() + '\n' +
+    '--------------------------\n' +
+    '\n\n\n';
+  var bytes = new Uint8Array(texto.length);
+  for (var i = 0; i < texto.length; i++) bytes[i] = texto.charCodeAt(i);
+  return bytes;
+}
+
+async function enviarTeste() {
+  if (!caracteristicaEscrita) return;
+  var bytes = montarComandoTeste();
+  var CHUNK = 20; // MTU seguro para BLE sem negociacao especial
+  try {
+    log('Enviando ' + bytes.length + ' bytes em blocos de ' + CHUNK + '...');
+    for (var i = 0; i < bytes.length; i += CHUNK) {
+      var pedaco = bytes.slice(i, i + CHUNK);
+      if (caracteristicaEscrita.properties.writeWithoutResponse) {
+        await caracteristicaEscrita.writeValueWithoutResponse(pedaco);
+      } else {
+        await caracteristicaEscrita.writeValue(pedaco);
+      }
+      await new Promise(function (resolve) { setTimeout(resolve, 30); });
+    }
+    log('Envio concluido. Verifique se a impressora imprimiu.');
+  } catch (err) {
+    log('ERRO ao enviar: ' + err.message);
+  }
+}
+</script>
+</body>
+</html>
