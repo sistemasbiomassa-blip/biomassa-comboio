@@ -99,12 +99,16 @@ function getCadastros_(fazenda) {
   var veiculosVistos = {};
   var veiculos = [];
   linhasMaquinarios.forEach(function (linha) {
-    var linhaFazenda = String(linha[0] || '').trim();
-    if (fazenda && linhaFazenda !== fazenda) return;
-
     var maquinario = String(linha[1] || '').trim();
     var placa = String(linha[2] || '').trim();
     if (!maquinario) return;
+
+    // Caminhao (tem placa) roda entre fazendas, entao aparece em todas.
+    // Maquinario fixo (sem placa) continua exclusivo da fazenda dele.
+    if (!placa) {
+      var linhaFazenda = String(linha[0] || '').trim();
+      if (fazenda && linhaFazenda !== fazenda) return;
+    }
 
     var chave = maquinario + '|' + placa;
     if (veiculosVistos[chave]) return;
