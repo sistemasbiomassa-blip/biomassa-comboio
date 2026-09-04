@@ -33,7 +33,10 @@ App publicado em: **https://sistemasbiomassa-blip.github.io/biomassa-comboio/**
 6. Preencha as duas abas de cadastro:
    - **`Maquinarios`**: colunas `FAZENDA | MAQUINARIO | PLACA` — uma linha por máquina ou
      caminhão de cada fazenda. Deixe `PLACA` em branco para maquinário que não tem placa
-     (trator, colheitadeira etc). O app junta Maquinário+Placa numa escolha só.
+     (trator, skidder etc) — nesse caso o app mostra o nome (ex: `SKIDDER 01`). Para
+     caminhão, preencha os dois campos (pode repetir o mesmo texto em `MAQUINARIO` e
+     `PLACA` se não tiver um nome/modelo separado) — o app mostra só a placa na lista,
+     já que é o jeito mais rápido de identificar o caminhão.
    - **`Pessoas`**: colunas `FAZENDA | NOME | FUNCAO` — uma linha por pessoa, com `FUNCAO`
      igual a `MOTORISTA` (dirige veículo com placa) ou `OPERADOR` (opera maquinário sem
      placa). O app mostra automaticamente só a lista certa dependendo do veículo escolhido

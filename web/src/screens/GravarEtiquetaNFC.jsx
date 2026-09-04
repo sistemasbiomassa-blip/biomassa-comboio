@@ -10,7 +10,7 @@ function chaveVeiculo(maquinario, placa) {
 }
 
 function rotuloVeiculo(veiculo) {
-  return veiculo.placa ? veiculo.maquinario + ' — ' + veiculo.placa : veiculo.maquinario;
+  return veiculo.placa || veiculo.maquinario;
 }
 
 export default function GravarEtiquetaNFC({ onVoltar }) {
