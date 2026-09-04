@@ -123,6 +123,11 @@ function montarCorpoRecibo(registro) {
     '--------------------------------',
     '',
     '',
+    'Assinatura do operador:',
+    '',
+    '________________________________',
+    '',
+    '',
     ''
   ];
   return removerAcentos(linhas.join('\n'));
