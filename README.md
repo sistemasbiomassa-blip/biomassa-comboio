@@ -41,7 +41,9 @@ App publicado em: **https://sistemasbiomassa-blip.github.io/biomassa-comboio/**
      igual a `MOTORISTA` (dirige veículo com placa) ou `OPERADOR` (opera maquinário sem
      placa). O app mostra automaticamente só a lista certa dependendo do veículo escolhido
      no formulário — não precisa vincular pessoa a máquina fixa, qualquer motorista/operador
-     do turno pode ser escolhido a cada abastecimento.
+     do turno pode ser escolhido a cada abastecimento. Motorista roda entre fazendas, então
+     a coluna `FAZENDA` é ignorada para linhas `MOTORISTA` (pode deixar em branco ou
+     preencher, tanto faz) — só é usada mesmo para filtrar `OPERADOR` por fazenda.
 7. Clique em **Implantar > Nova implantação**:
    - Tipo: **Aplicativo da Web**
    - Executar como: **Eu**

@@ -119,15 +119,19 @@ function getCadastros_(fazenda) {
   var motoristas = {};
   var operadores = {};
   linhasPessoas.forEach(function (linha) {
-    var linhaFazenda = String(linha[0] || '').trim();
-    if (fazenda && linhaFazenda !== fazenda) return;
-
     var nome = String(linha[1] || '').trim();
     var funcao = String(linha[2] || '').trim().toUpperCase();
     if (!nome) return;
 
-    if (funcao === 'MOTORISTA') motoristas[nome] = true;
-    else if (funcao === 'OPERADOR') operadores[nome] = true;
+    if (funcao === 'MOTORISTA') {
+      // Motorista de caminhao roda entre fazendas, entao a lista de
+      // motoristas nao e filtrada por fazenda (aparece igual em todas).
+      motoristas[nome] = true;
+    } else if (funcao === 'OPERADOR') {
+      var linhaFazenda = String(linha[0] || '').trim();
+      if (fazenda && linhaFazenda !== fazenda) return;
+      operadores[nome] = true;
+    }
   });
 
   return {
