@@ -13,10 +13,11 @@
  * que descubra a URL do Web App consiga gravar dados na planilha.
  */
 
-var TOKEN = 'TROQUE-ESTE-TOKEN';
+var TOKEN = 'b926c87c6cdf9c79d8ec0cac2d045c34346555ff9f986601';
 
 var SHEET_ABASTECIMENTOS = 'Abastecimentos';
-var SHEET_CADASTROS = 'Cadastros';
+var SHEET_MAQUINARIOS = 'Maquinarios';
+var SHEET_PESSOAS = 'Pessoas';
 
 var ABASTECIMENTO_COLUNAS = [
   'ID', 'DATA', 'HORARIO', 'FAZENDA', 'MAQUINARIO', 'PLACA',
@@ -24,7 +25,12 @@ var ABASTECIMENTO_COLUNAS = [
   'PARCIAL_OU_COMPLETO', 'OPERADOR', 'RESPONSAVEL', 'ENVIADO_EM'
 ];
 
-var CADASTRO_COLUNAS = ['FAZENDA', 'MAQUINARIO', 'PLACA', 'OPERADOR'];
+// PLACA fica em branco para maquinario que nao tem placa (ex: trator).
+var MAQUINARIO_COLUNAS = ['FAZENDA', 'MAQUINARIO', 'PLACA'];
+
+// FUNCAO deve ser "MOTORISTA" (para quem dirige caminhao/veiculo com placa)
+// ou "OPERADOR" (para quem opera maquinario sem placa).
+var PESSOA_COLUNAS = ['FAZENDA', 'NOME', 'FUNCAO'];
 
 function getOrCreateSheet_(nome, colunas) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -82,31 +88,51 @@ function doPost(e) {
   return jsonResponse_({ ok: true, salvos: resultado.salvos, duplicados: resultado.duplicados });
 }
 
+// Retorna os veiculos/maquinarios da fazenda (cada um com sua placa, quando
+// tiver) e as pessoas ja separadas por funcao (motoristas x operadores),
+// para o app filtrar sozinho qual lista mostrar dependendo do veiculo
+// escolhido.
 function getCadastros_(fazenda) {
-  var sheet = getOrCreateSheet_(SHEET_CADASTROS, CADASTRO_COLUNAS);
-  var values = sheet.getDataRange().getValues();
-  var linhas = values.slice(1);
+  var sheetMaquinarios = getOrCreateSheet_(SHEET_MAQUINARIOS, MAQUINARIO_COLUNAS);
+  var linhasMaquinarios = sheetMaquinarios.getDataRange().getValues().slice(1);
 
-  var maquinarios = {};
-  var placas = {};
-  var operadores = {};
-
-  linhas.forEach(function (linha) {
+  var veiculosVistos = {};
+  var veiculos = [];
+  linhasMaquinarios.forEach(function (linha) {
     var linhaFazenda = String(linha[0] || '').trim();
     if (fazenda && linhaFazenda !== fazenda) return;
 
     var maquinario = String(linha[1] || '').trim();
     var placa = String(linha[2] || '').trim();
-    var operador = String(linha[3] || '').trim();
+    if (!maquinario) return;
 
-    if (maquinario) maquinarios[maquinario] = true;
-    if (placa) placas[placa] = true;
-    if (operador) operadores[operador] = true;
+    var chave = maquinario + '|' + placa;
+    if (veiculosVistos[chave]) return;
+    veiculosVistos[chave] = true;
+    veiculos.push({ maquinario: maquinario, placa: placa });
+  });
+  veiculos.sort(function (a, b) { return a.maquinario.localeCompare(b.maquinario); });
+
+  var sheetPessoas = getOrCreateSheet_(SHEET_PESSOAS, PESSOA_COLUNAS);
+  var linhasPessoas = sheetPessoas.getDataRange().getValues().slice(1);
+
+  var motoristas = {};
+  var operadores = {};
+  linhasPessoas.forEach(function (linha) {
+    var linhaFazenda = String(linha[0] || '').trim();
+    if (fazenda && linhaFazenda !== fazenda) return;
+
+    var nome = String(linha[1] || '').trim();
+    var funcao = String(linha[2] || '').trim().toUpperCase();
+    if (!nome) return;
+
+    if (funcao === 'MOTORISTA') motoristas[nome] = true;
+    else if (funcao === 'OPERADOR') operadores[nome] = true;
   });
 
   return {
-    maquinarios: Object.keys(maquinarios).sort(),
-    placas: Object.keys(placas).sort(),
+    veiculos: veiculos,
+    motoristas: Object.keys(motoristas).sort(),
     operadores: Object.keys(operadores).sort()
   };
 }
@@ -181,5 +207,6 @@ function salvarAbastecimentos_(registros) {
  */
 function setup() {
   getOrCreateSheet_(SHEET_ABASTECIMENTOS, ABASTECIMENTO_COLUNAS);
-  getOrCreateSheet_(SHEET_CADASTROS, CADASTRO_COLUNAS);
+  getOrCreateSheet_(SHEET_MAQUINARIOS, MAQUINARIO_COLUNAS);
+  getOrCreateSheet_(SHEET_PESSOAS, PESSOA_COLUNAS);
 }

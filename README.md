@@ -3,15 +3,22 @@
 App (PWA) para registrar abastecimento de maquinários e caminhões na fazenda e ver os
 lançamentos em tempo quase real no escritório, usando Google Sheets como banco de dados.
 
+App publicado em: **https://sistemasbiomassa-blip.github.io/biomassa-comboio/**
+(deploy automático via GitHub Actions a cada push na branch `main`).
+
 ## Como funciona
 
 - `apps-script/` — código do Google Apps Script, publicado como Web App. É a API que lê e
   grava na planilha do Google Sheets.
 - `web/` — o aplicativo (PWA), instalável no celular sem loja de app. Tem dois perfis:
   - **Responsável** (fazenda): preenche o formulário de abastecimento. Funciona offline —
-    o registro fica salvo no aparelho e é enviado sozinho quando a internet voltar.
+    o registro fica salvo no aparelho e é enviado sozinho quando a internet voltar. Pode
+    imprimir um recibo automaticamente (via app RawBT) e ler etiquetas NFC coladas nas
+    máquinas para pré-preencher o maquinário.
   - **Analista** (escritório): vê a lista de abastecimentos recentes, atualizando sozinha
     a cada ~20 segundos.
+  - Ações administrativas ("Gravar etiqueta NFC", "Trocar configuração do aparelho") pedem
+    um PIN antes de abrir (ver `web/src/lib/admin.js`).
 
 ## Passo 1 — Planilha e Apps Script
 
@@ -22,10 +29,16 @@ lançamentos em tempo quase real no escritório, usando Google Sheets como banco
    do Apps Script, ative "Mostrar arquivo de manifesto" nas configurações do projeto).
 4. Troque a constante `TOKEN` no topo do `Code.js` por um valor secreto único.
 5. Na barra de funções do editor, selecione `setup` e clique em Executar uma vez — isso
-   cria as abas `Abastecimentos` e `Cadastros` com os cabeçalhos certos.
-6. Preencha a aba `Cadastros` com as colunas `FAZENDA | MAQUINARIO | PLACA | OPERADOR`,
-   uma linha para cada combinação existente em cada fazenda (é dessa aba que o app
-   carrega os menus suspensos).
+   cria as abas `Abastecimentos`, `Maquinarios` e `Pessoas` com os cabeçalhos certos.
+6. Preencha as duas abas de cadastro:
+   - **`Maquinarios`**: colunas `FAZENDA | MAQUINARIO | PLACA` — uma linha por máquina ou
+     caminhão de cada fazenda. Deixe `PLACA` em branco para maquinário que não tem placa
+     (trator, colheitadeira etc). O app junta Maquinário+Placa numa escolha só.
+   - **`Pessoas`**: colunas `FAZENDA | NOME | FUNCAO` — uma linha por pessoa, com `FUNCAO`
+     igual a `MOTORISTA` (dirige veículo com placa) ou `OPERADOR` (opera maquinário sem
+     placa). O app mostra automaticamente só a lista certa dependendo do veículo escolhido
+     no formulário — não precisa vincular pessoa a máquina fixa, qualquer motorista/operador
+     do turno pode ser escolhido a cada abastecimento.
 7. Clique em **Implantar > Nova implantação**:
    - Tipo: **Aplicativo da Web**
    - Executar como: **Eu**
@@ -38,7 +51,7 @@ lançamentos em tempo quase real no escritório, usando Google Sheets como banco
 2. Preencha `VITE_APPS_SCRIPT_URL` com a URL do passo 1 e `VITE_API_TOKEN` com o mesmo
    token usado no `Code.js`.
 3. Edite [`web/src/data/fazendas.js`](web/src/data/fazendas.js) com o nome real das
-   fazendas (precisa ser idêntico ao usado na coluna `FAZENDA` da aba `Cadastros`).
+   fazendas (precisa ser idêntico ao usado na coluna `FAZENDA` das abas `Maquinarios`/`Pessoas`).
 4. Instale as dependências e rode localmente:
    ```
    cd web
@@ -52,25 +65,30 @@ lançamentos em tempo quase real no escritório, usando Google Sheets como banco
    registre um abastecimento (deve aparecer "aguardando envio"), reative a internet e
    confirme que ele sincroniza sozinho.
 
-## Passo 3 — Publicar (GitHub Pages)
+## Passo 3 — Publicar (já configurado)
 
-1. Se o repositório for publicado em `https://SEU_USUARIO.github.io/biomassa-comboio/`,
-   ajuste `base` em [`web/vite.config.js`](web/vite.config.js) para `'/biomassa-comboio/'`.
-2. Gere o build:
-   ```
-   cd web
-   npm run build
-   ```
-3. Publique a pasta `web/dist` no GitHub Pages (ex: branch `gh-pages`, ou GitHub Actions).
-4. No celular, abra o link no Chrome e use "Adicionar à tela inicial" para instalar o PWA.
-   Repita a configuração inicial (perfil/fazenda) em cada aparelho.
+O repositório já tem um workflow (`.github/workflows/deploy.yml`) que builda e publica
+automaticamente no GitHub Pages a cada `git push` na branch `main`. Falta só configurar os
+segredos do repositório (Settings → Secrets and variables → Actions) com os valores reais:
+
+- `VITE_APPS_SCRIPT_URL`
+- `VITE_API_TOKEN`
+
+Depois de configurados, qualquer push refaz o build já com esses valores embutidos. No
+celular, abra o link publicado no Chrome e use "Adicionar à tela inicial" para instalar o
+PWA. Repita a configuração inicial (perfil/fazenda) em cada aparelho.
+
+**Atenção ao Service Worker**: depois de publicar uma atualização, o app instalado só pega
+a nova versão depois de ser fechado por completo (não só minimizado) e reaberto.
 
 ## Limitações conhecidas (MVP)
 
-- Não há login individual — cada aparelho é configurado uma vez com fazenda/nome/perfil.
+- Não há login individual — cada aparelho é configurado uma vez com fazenda/nome/perfil. O
+  PIN em `web/src/lib/admin.js` protege só as ações administrativas, não é autenticação real.
 - A visão do analista atualiza por consulta periódica (polling a cada 20s), não é push
   instantâneo. Para isso, seria necessário migrar de Google Sheets para algo como Firebase.
-- Cadastro de maquinário/placa/operador é feito direto na planilha (aba `Cadastros`), sem
-  tela própria no app.
-- Os ícones em `web/public/icons/icon.svg` são um placeholder — troque pela logo real da
-  Biomassa Chaparini quando tiver o arquivo.
+- Cadastro de maquinário/placa/pessoas é feito direto na planilha (abas `Maquinarios` e
+  `Pessoas`), sem tela própria no app.
+- Impressão automática de recibo depende do app **RawBT** (Play Store) instalado e da
+  impressora pareada nele — só funciona em Android/Chrome, não em iOS.
+- Gravação de etiquetas NFC (tela "Gravar etiqueta NFC") só funciona em Chrome Android.

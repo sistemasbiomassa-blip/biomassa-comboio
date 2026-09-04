@@ -6,6 +6,7 @@ import { lerParametrosDeMaquina, limparParametrosDaUrl } from '../lib/nfc.js';
 
 const CADASTROS_CACHE_KEY = 'biomassa.cadastrosCache.';
 const IMPRIMIR_CACHE_KEY = 'biomassa.imprimirRecibo';
+const SEPARADOR_VEICULO = '||';
 
 function novoUuid() {
   if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -22,30 +23,29 @@ function agoraHorario() {
   return d.toTimeString().slice(0, 5);
 }
 
+function chaveVeiculo(maquinario, placa) {
+  return maquinario + SEPARADOR_VEICULO + (placa || '');
+}
+
+function rotuloVeiculo(veiculo) {
+  return veiculo.placa ? veiculo.maquinario + ' — ' + veiculo.placa : veiculo.maquinario;
+}
+
 function campoVazio() {
   return {
-    maquinario: '',
-    placa: '',
+    veiculo: '',
     tipoCombustivel: 'DIESEL',
     quantidade: '',
     hodometro: '',
     parcialOuCompleto: 'COMPLETO',
-    operador: ''
+    pessoa: ''
   };
 }
 
 export default function ResponsavelForm({ deviceConfig }) {
   const { fazenda, responsavel } = deviceConfig;
-  const [cadastros, setCadastros] = useState({ maquinarios: [], placas: [], operadores: [] });
-  const [campos, setCampos] = useState(function () {
-    var daEtiqueta = lerParametrosDeMaquina();
-    var vazio = campoVazio();
-    if (daEtiqueta) {
-      vazio.maquinario = daEtiqueta.maquinario;
-      vazio.placa = daEtiqueta.placa;
-    }
-    return vazio;
-  });
+  const [cadastros, setCadastros] = useState({ veiculos: [], motoristas: [], operadores: [] });
+  const [campos, setCampos] = useState(campoVazio());
   const [veioDeEtiqueta] = useState(function () { return !!lerParametrosDeMaquina(); });
   const [data, setData] = useState(agoraData());
   const [horario, setHorario] = useState(agoraHorario());
@@ -58,7 +58,6 @@ export default function ResponsavelForm({ deviceConfig }) {
   useEffect(function () {
     carregarCadastros();
     atualizarPendentes();
-    if (veioDeEtiqueta) limparParametrosDaUrl();
     window.addEventListener('online', sincronizar);
     var intervalo = setInterval(sincronizar, 30000);
     return function () {
@@ -69,26 +68,40 @@ export default function ResponsavelForm({ deviceConfig }) {
 
   async function carregarCadastros() {
     var cacheKey = CADASTROS_CACHE_KEY + fazenda;
+    var dados;
     try {
-      var dados = await fetchCadastros(fazenda);
-      setCadastros(dados);
+      dados = await fetchCadastros(fazenda);
       localStorage.setItem(cacheKey, JSON.stringify(dados));
     } catch (err) {
       var cache = localStorage.getItem(cacheKey);
       if (cache) {
-        setCadastros(JSON.parse(cache));
+        dados = JSON.parse(cache);
         setStatus('Sem conexao: usando lista de cadastros salva anteriormente.');
       } else {
         // Dados de teste temporarios, so para permitir testar o formulario/impressao
         // antes do Apps Script/planilha real estarem configurados (ver web/.env.example).
-        setCadastros({
-          maquinarios: ['TRATOR TESTE'],
-          placas: ['ABC-1234'],
+        dados = {
+          veiculos: [{ maquinario: 'TRATOR TESTE', placa: '' }, { maquinario: 'CAMINHAO TESTE', placa: 'ABC-1234' }],
+          motoristas: ['MOTORISTA TESTE'],
           operadores: ['OPERADOR TESTE']
-        });
+        };
         setStatus('Sem conexao com a planilha: usando dados de teste temporarios.');
       }
     }
+    setCadastros(dados);
+    aplicarPreenchimentoDeEtiqueta(dados);
+  }
+
+  function aplicarPreenchimentoDeEtiqueta(dados) {
+    var daEtiqueta = lerParametrosDeMaquina();
+    if (!daEtiqueta) return;
+    var encontrado = dados.veiculos.find(function (v) {
+      return v.maquinario === daEtiqueta.maquinario && (v.placa || '') === (daEtiqueta.placa || '');
+    });
+    if (encontrado) {
+      atualizarCampo('veiculo', chaveVeiculo(encontrado.maquinario, encontrado.placa));
+    }
+    limparParametrosDaUrl();
   }
 
   async function atualizarPendentes() {
@@ -108,14 +121,31 @@ export default function ResponsavelForm({ deviceConfig }) {
     setCampos(function (atual) {
       var copia = Object.assign({}, atual);
       copia[nome] = valor;
+      if (nome === 'veiculo') copia.pessoa = '';
       return copia;
     });
+  }
+
+  function veiculoSelecionado() {
+    if (!campos.veiculo) return null;
+    var partes = campos.veiculo.split(SEPARADOR_VEICULO);
+    return { maquinario: partes[0], placa: partes[1] || '' };
+  }
+
+  function ehCaminhao() {
+    var v = veiculoSelecionado();
+    return !!(v && v.placa);
+  }
+
+  function listaDePessoas() {
+    return ehCaminhao() ? cadastros.motoristas : cadastros.operadores;
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (!campos.maquinario || !campos.placa || !campos.operador || !campos.quantidade || !campos.hodometro) {
+    var veiculo = veiculoSelecionado();
+    if (!veiculo || !campos.pessoa || !campos.quantidade || !campos.hodometro) {
       alert('Preencha todos os campos.');
       return;
     }
@@ -125,13 +155,13 @@ export default function ResponsavelForm({ deviceConfig }) {
       DATA: data,
       HORARIO: horario,
       FAZENDA: fazenda,
-      MAQUINARIO: campos.maquinario,
-      PLACA: campos.placa,
+      MAQUINARIO: veiculo.maquinario,
+      PLACA: veiculo.placa,
       TIPO_COMBUSTIVEL: campos.tipoCombustivel,
       QUANTIDADE: campos.quantidade,
       HODOMETRO_HORIMETRO: campos.hodometro,
       PARCIAL_OU_COMPLETO: campos.parcialOuCompleto,
-      OPERADOR: campos.operador,
+      OPERADOR: campos.pessoa,
       RESPONSAVEL: responsavel
     };
 
@@ -157,7 +187,7 @@ export default function ResponsavelForm({ deviceConfig }) {
     <div className="tela">
       <h1>Registrar abastecimento</h1>
       <p className="fazenda-fixa">Fazenda: <strong>{fazenda}</strong> — Responsavel: <strong>{responsavel}</strong></p>
-      {veioDeEtiqueta && <p className="status">Maquinario e placa preenchidos pela etiqueta NFC. Confira e corrija se necessario.</p>}
+      {veioDeEtiqueta && <p className="status">Maquinario preenchido pela etiqueta NFC. Confira e corrija se necessario.</p>}
       {pendentes > 0 && <p className="aviso">{pendentes} lancamento(s) aguardando envio.</p>}
       {status && <p className="status">{status}</p>}
 
@@ -173,17 +203,12 @@ export default function ResponsavelForm({ deviceConfig }) {
 
         <label>
           Maquinario / Caminhao
-          <select value={campos.maquinario} onChange={function (e) { atualizarCampo('maquinario', e.target.value); }}>
+          <select value={campos.veiculo} onChange={function (e) { atualizarCampo('veiculo', e.target.value); }}>
             <option value="">Selecione</option>
-            {cadastros.maquinarios.map(function (m) { return <option key={m} value={m}>{m}</option>; })}
-          </select>
-        </label>
-
-        <label>
-          Placa
-          <select value={campos.placa} onChange={function (e) { atualizarCampo('placa', e.target.value); }}>
-            <option value="">Selecione</option>
-            {cadastros.placas.map(function (p) { return <option key={p} value={p}>{p}</option>; })}
+            {cadastros.veiculos.map(function (v) {
+              var chave = chaveVeiculo(v.maquinario, v.placa);
+              return <option key={chave} value={chave}>{rotuloVeiculo(v)}</option>;
+            })}
           </select>
         </label>
 
@@ -230,10 +255,10 @@ export default function ResponsavelForm({ deviceConfig }) {
         </fieldset>
 
         <label>
-          Operador
-          <select value={campos.operador} onChange={function (e) { atualizarCampo('operador', e.target.value); }}>
-            <option value="">Selecione</option>
-            {cadastros.operadores.map(function (o) { return <option key={o} value={o}>{o}</option>; })}
+          {ehCaminhao() ? 'Motorista' : 'Operador'}
+          <select value={campos.pessoa} onChange={function (e) { atualizarCampo('pessoa', e.target.value); }} disabled={!campos.veiculo}>
+            <option value="">{campos.veiculo ? 'Selecione' : 'Escolha o maquinario primeiro'}</option>
+            {listaDePessoas().map(function (p) { return <option key={p} value={p}>{p}</option>; })}
           </select>
         </label>
 

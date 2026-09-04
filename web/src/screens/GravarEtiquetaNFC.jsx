@@ -3,15 +3,25 @@ import { FAZENDAS } from '../data/fazendas.js';
 import { fetchCadastros } from '../lib/api.js';
 import { nfcSuportado, gravarUrlNaTag, montarUrlEtiqueta } from '../lib/nfc.js';
 
+const SEPARADOR_VEICULO = '||';
+
+function chaveVeiculo(maquinario, placa) {
+  return maquinario + SEPARADOR_VEICULO + (placa || '');
+}
+
+function rotuloVeiculo(veiculo) {
+  return veiculo.placa ? veiculo.maquinario + ' — ' + veiculo.placa : veiculo.maquinario;
+}
+
 export default function GravarEtiquetaNFC({ onVoltar }) {
   const [fazenda, setFazenda] = useState(FAZENDAS[0]);
-  const [cadastros, setCadastros] = useState({ maquinarios: [], placas: [] });
-  const [maquinario, setMaquinario] = useState('');
-  const [placa, setPlaca] = useState('');
+  const [cadastros, setCadastros] = useState({ veiculos: [] });
+  const [veiculo, setVeiculo] = useState('');
   const [status, setStatus] = useState('');
   const [gravando, setGravando] = useState(false);
 
   useEffect(function () {
+    setVeiculo('');
     carregarCadastros();
   }, [fazenda]);
 
@@ -31,18 +41,21 @@ export default function GravarEtiquetaNFC({ onVoltar }) {
       setStatus('Este aparelho/navegador nao suporta gravacao NFC (Web NFC). Use Chrome no Android com o NFC ligado nas configuracoes.');
       return;
     }
-    if (!maquinario || !placa) {
-      setStatus('Escolha o maquinario e a placa antes de gravar.');
+    if (!veiculo) {
+      setStatus('Escolha o maquinario antes de gravar.');
       return;
     }
 
+    var partes = veiculo.split(SEPARADOR_VEICULO);
+    var maquinario = partes[0];
+    var placa = partes[1] || '';
     var url = montarUrlEtiqueta(maquinario, placa);
 
     try {
       setGravando(true);
       setStatus('Encoste o celular na etiqueta NFC agora...');
       await gravarUrlNaTag(url);
-      setStatus('Etiqueta gravada com sucesso: ' + maquinario + ' / ' + placa + '.');
+      setStatus('Etiqueta gravada com sucesso: ' + maquinario + (placa ? ' / ' + placa : '') + '.');
     } catch (err) {
       setStatus('Erro ao gravar: ' + err.message);
     } finally {
@@ -65,17 +78,12 @@ export default function GravarEtiquetaNFC({ onVoltar }) {
 
         <label>
           Maquinario / Caminhao
-          <select value={maquinario} onChange={function (e) { setMaquinario(e.target.value); }}>
+          <select value={veiculo} onChange={function (e) { setVeiculo(e.target.value); }}>
             <option value="">Selecione</option>
-            {cadastros.maquinarios.map(function (m) { return <option key={m} value={m}>{m}</option>; })}
-          </select>
-        </label>
-
-        <label>
-          Placa
-          <select value={placa} onChange={function (e) { setPlaca(e.target.value); }}>
-            <option value="">Selecione</option>
-            {cadastros.placas.map(function (p) { return <option key={p} value={p}>{p}</option>; })}
+            {cadastros.veiculos.map(function (v) {
+              var chave = chaveVeiculo(v.maquinario, v.placa);
+              return <option key={chave} value={chave}>{rotuloVeiculo(v)}</option>;
+            })}
           </select>
         </label>
 
