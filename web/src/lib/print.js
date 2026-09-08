@@ -105,6 +105,16 @@ function removerAcentos(texto) {
   return resultado;
 }
 
+function formatarNumeroBr_(numero, comSeparadorMilhar) {
+  if (numero === '' || numero === undefined || numero === null || isNaN(numero)) return String(numero);
+  var partes = Number(numero).toFixed(2).split('.');
+  var inteiro = partes[0];
+  if (comSeparadorMilhar) {
+    inteiro = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+  return inteiro + ',' + partes[1];
+}
+
 function montarCorpoRecibo(registro) {
   var linhas = [
     'BIOMASSA CHAPARINI',
@@ -115,8 +125,8 @@ function montarCorpoRecibo(registro) {
     'Maquinario: ' + registro.MAQUINARIO,
     'Placa: ' + registro.PLACA,
     'Combustivel: ' + registro.TIPO_COMBUSTIVEL,
-    'Quantidade: ' + registro.QUANTIDADE + ' L',
-    'Hodometro/Horimetro: ' + registro.HODOMETRO_HORIMETRO,
+    'Quantidade: ' + formatarNumeroBr_(registro.QUANTIDADE, false) + ' L',
+    'Hodometro/Horimetro: ' + formatarNumeroBr_(registro.HODOMETRO_HORIMETRO, true),
     'Abastecimento: ' + registro.PARCIAL_OU_COMPLETO,
     'Operador: ' + registro.OPERADOR,
     'Responsavel: ' + registro.RESPONSAVEL,

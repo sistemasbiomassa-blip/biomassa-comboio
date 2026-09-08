@@ -4,6 +4,12 @@ import { FAZENDAS } from '../data/fazendas.js';
 
 const INTERVALO_MS = 20000;
 
+function formatarNumeroBr(valor) {
+  var numero = Number(valor);
+  if (isNaN(numero)) return valor;
+  return numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export default function AnalistaFeed() {
   const [fazendaFiltro, setFazendaFiltro] = useState('');
   const [registros, setRegistros] = useState([]);
@@ -56,8 +62,8 @@ export default function AnalistaFeed() {
                 <span>{r.DATA} {r.HORARIO}</span>
               </div>
               <div>{r.MAQUINARIO} — {r.PLACA}</div>
-              <div>{r.TIPO_COMBUSTIVEL} • {r.QUANTIDADE} L • {r.PARCIAL_OU_COMPLETO}</div>
-              <div>Hodometro/Horimetro: {r.HODOMETRO_HORIMETRO}</div>
+              <div>{r.TIPO_COMBUSTIVEL} • {formatarNumeroBr(r.QUANTIDADE)} L • {r.PARCIAL_OU_COMPLETO}</div>
+              <div>Hodometro/Horimetro: {formatarNumeroBr(r.HODOMETRO_HORIMETRO)}</div>
               <div>Operador: {r.OPERADOR} • Responsavel: {r.RESPONSAVEL}</div>
             </div>
           );

@@ -3,6 +3,7 @@ import { fetchCadastros } from '../lib/api.js';
 import { enqueue, trySync, listPending } from '../lib/offlineQueue.js';
 import { montarReciboComLogo, imprimirViaRawBT } from '../lib/print.js';
 import { lerParametrosDeMaquina, limparParametrosDaUrl } from '../lib/nfc.js';
+import { digitosParaMascara, mascaraParaNumero } from '../lib/mascara.js';
 
 const CADASTROS_CACHE_KEY = 'biomassa.cadastrosCache.';
 const IMPRIMIR_CACHE_KEY = 'biomassa.imprimirRecibo';
@@ -126,6 +127,14 @@ export default function ResponsavelForm({ deviceConfig }) {
     });
   }
 
+  function handleQuantidadeChange(e) {
+    atualizarCampo('quantidade', digitosParaMascara(e.target.value, false));
+  }
+
+  function handleHodometroChange(e) {
+    atualizarCampo('hodometro', digitosParaMascara(e.target.value, true));
+  }
+
   function veiculoSelecionado() {
     if (!campos.veiculo) return null;
     var partes = campos.veiculo.split(SEPARADOR_VEICULO);
@@ -158,8 +167,8 @@ export default function ResponsavelForm({ deviceConfig }) {
       MAQUINARIO: veiculo.maquinario,
       PLACA: veiculo.placa,
       TIPO_COMBUSTIVEL: campos.tipoCombustivel,
-      QUANTIDADE: campos.quantidade,
-      HODOMETRO_HORIMETRO: campos.hodometro,
+      QUANTIDADE: mascaraParaNumero(campos.quantidade),
+      HODOMETRO_HORIMETRO: mascaraParaNumero(campos.hodometro),
       PARCIAL_OU_COMPLETO: campos.parcialOuCompleto,
       OPERADOR: campos.pessoa,
       RESPONSAVEL: responsavel
@@ -222,12 +231,12 @@ export default function ResponsavelForm({ deviceConfig }) {
 
         <label>
           Quantidade (litros)
-          <input type="number" step="0.01" value={campos.quantidade} onChange={function (e) { atualizarCampo('quantidade', e.target.value); }} />
+          <input type="text" inputMode="decimal" placeholder="0,00" value={campos.quantidade} onChange={handleQuantidadeChange} />
         </label>
 
         <label>
           Hodometro / Horimetro
-          <input type="number" step="0.01" value={campos.hodometro} onChange={function (e) { atualizarCampo('hodometro', e.target.value); }} />
+          <input type="text" inputMode="decimal" placeholder="0,00" value={campos.hodometro} onChange={handleHodometroChange} />
         </label>
 
         <fieldset>
