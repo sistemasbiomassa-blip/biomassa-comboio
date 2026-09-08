@@ -149,11 +149,14 @@ function getCadastros_(fazenda) {
 // entao ao ler de volta viram objetos Date do Apps Script. Formatamos aqui
 // para nao mandar para o app um texto cru tipo "1899-12-30T13:44:28.000Z".
 function formatarCelula_(coluna, valor) {
-  if (!(valor instanceof Date)) return valor;
+  if (coluna !== 'DATA' && coluna !== 'HORARIO') return valor;
+
+  var data = valor instanceof Date ? valor : new Date(valor);
+  if (isNaN(data.getTime())) return valor;
+
   var fuso = Session.getScriptTimeZone();
-  if (coluna === 'DATA') return Utilities.formatDate(valor, fuso, 'dd/MM/yyyy');
-  if (coluna === 'HORARIO') return Utilities.formatDate(valor, fuso, 'HH:mm');
-  return valor;
+  if (coluna === 'DATA') return Utilities.formatDate(data, fuso, 'dd/MM/yyyy');
+  return Utilities.formatDate(data, fuso, 'HH:mm');
 }
 
 function getFeed_(fazenda, desdeIso) {
