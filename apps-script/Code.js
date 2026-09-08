@@ -145,6 +145,17 @@ function getCadastros_(fazenda) {
   };
 }
 
+// O Google Sheets guarda DATA/HORARIO como valores de data/hora "de verdade",
+// entao ao ler de volta viram objetos Date do Apps Script. Formatamos aqui
+// para nao mandar para o app um texto cru tipo "1899-12-30T13:44:28.000Z".
+function formatarCelula_(coluna, valor) {
+  if (!(valor instanceof Date)) return valor;
+  var fuso = Session.getScriptTimeZone();
+  if (coluna === 'DATA') return Utilities.formatDate(valor, fuso, 'dd/MM/yyyy');
+  if (coluna === 'HORARIO') return Utilities.formatDate(valor, fuso, 'HH:mm');
+  return valor;
+}
+
 function getFeed_(fazenda, desdeIso) {
   var sheet = getOrCreateSheet_(SHEET_ABASTECIMENTOS, ABASTECIMENTO_COLUNAS);
   var values = sheet.getDataRange().getValues();
@@ -156,7 +167,7 @@ function getFeed_(fazenda, desdeIso) {
     .map(function (linha) {
       var obj = {};
       ABASTECIMENTO_COLUNAS.forEach(function (nomeColuna, i) {
-        obj[nomeColuna] = linha[i];
+        obj[nomeColuna] = formatarCelula_(nomeColuna, linha[i]);
       });
       return obj;
     })
