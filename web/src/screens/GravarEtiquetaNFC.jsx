@@ -15,6 +15,7 @@ function rotuloVeiculo(veiculo) {
 
 export default function GravarEtiquetaNFC({ onVoltar }) {
   const [fazenda, setFazenda] = useState(FAZENDAS[0]);
+  const [tipoVeiculo, setTipoVeiculo] = useState('MAQUINARIO');
   const [cadastros, setCadastros] = useState({ veiculos: [] });
   const [veiculo, setVeiculo] = useState('');
   const [status, setStatus] = useState('');
@@ -32,6 +33,17 @@ export default function GravarEtiquetaNFC({ onVoltar }) {
     } catch (err) {
       setStatus('Nao foi possivel carregar a lista da planilha (' + err.message + '). Configure o web/.env primeiro.');
     }
+  }
+
+  function handleTipoVeiculoChange(valor) {
+    setTipoVeiculo(valor);
+    setVeiculo('');
+  }
+
+  function veiculosFiltrados() {
+    return cadastros.veiculos.filter(function (v) {
+      return tipoVeiculo === 'CAMINHAO' ? !!v.placa : !v.placa;
+    });
   }
 
   async function gravar() {
@@ -76,11 +88,35 @@ export default function GravarEtiquetaNFC({ onVoltar }) {
           </select>
         </label>
 
+        <fieldset>
+          <legend>Tipo</legend>
+          <label className="radio">
+            <input
+              type="radio"
+              name="tipoVeiculo"
+              value="MAQUINARIO"
+              checked={tipoVeiculo === 'MAQUINARIO'}
+              onChange={function () { handleTipoVeiculoChange('MAQUINARIO'); }}
+            />
+            Maquinario
+          </label>
+          <label className="radio">
+            <input
+              type="radio"
+              name="tipoVeiculo"
+              value="CAMINHAO"
+              checked={tipoVeiculo === 'CAMINHAO'}
+              onChange={function () { handleTipoVeiculoChange('CAMINHAO'); }}
+            />
+            Caminhao
+          </label>
+        </fieldset>
+
         <label>
-          Maquinario / Caminhao
+          {tipoVeiculo === 'CAMINHAO' ? 'Caminhao (placa)' : 'Maquinario'}
           <select value={veiculo} onChange={function (e) { setVeiculo(e.target.value); }}>
             <option value="">Selecione</option>
-            {cadastros.veiculos.map(function (v) {
+            {veiculosFiltrados().map(function (v) {
               var chave = chaveVeiculo(v.maquinario, v.placa);
               return <option key={chave} value={chave}>{rotuloVeiculo(v)}</option>;
             })}

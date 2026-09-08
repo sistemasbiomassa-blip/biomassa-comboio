@@ -46,6 +46,7 @@ function campoVazio() {
 export default function ResponsavelForm({ deviceConfig }) {
   const { fazenda, responsavel } = deviceConfig;
   const [cadastros, setCadastros] = useState({ veiculos: [], motoristas: [], operadores: [] });
+  const [tipoVeiculo, setTipoVeiculo] = useState('MAQUINARIO');
   const [campos, setCampos] = useState(campoVazio());
   const [veioDeEtiqueta] = useState(function () { return !!lerParametrosDeMaquina(); });
   const [data, setData] = useState(agoraData());
@@ -100,9 +101,21 @@ export default function ResponsavelForm({ deviceConfig }) {
       return v.maquinario === daEtiqueta.maquinario && (v.placa || '') === (daEtiqueta.placa || '');
     });
     if (encontrado) {
+      setTipoVeiculo(encontrado.placa ? 'CAMINHAO' : 'MAQUINARIO');
       atualizarCampo('veiculo', chaveVeiculo(encontrado.maquinario, encontrado.placa));
     }
     limparParametrosDaUrl();
+  }
+
+  function handleTipoVeiculoChange(valor) {
+    setTipoVeiculo(valor);
+    atualizarCampo('veiculo', '');
+  }
+
+  function veiculosFiltrados() {
+    return cadastros.veiculos.filter(function (v) {
+      return tipoVeiculo === 'CAMINHAO' ? !!v.placa : !v.placa;
+    });
   }
 
   async function atualizarPendentes() {
@@ -210,11 +223,35 @@ export default function ResponsavelForm({ deviceConfig }) {
           <input type="time" value={horario} onChange={function (e) { setHorario(e.target.value); }} />
         </label>
 
+        <fieldset>
+          <legend>Tipo</legend>
+          <label className="radio">
+            <input
+              type="radio"
+              name="tipoVeiculo"
+              value="MAQUINARIO"
+              checked={tipoVeiculo === 'MAQUINARIO'}
+              onChange={function () { handleTipoVeiculoChange('MAQUINARIO'); }}
+            />
+            Maquinario
+          </label>
+          <label className="radio">
+            <input
+              type="radio"
+              name="tipoVeiculo"
+              value="CAMINHAO"
+              checked={tipoVeiculo === 'CAMINHAO'}
+              onChange={function () { handleTipoVeiculoChange('CAMINHAO'); }}
+            />
+            Caminhao
+          </label>
+        </fieldset>
+
         <label>
-          Maquinario / Caminhao
+          {tipoVeiculo === 'CAMINHAO' ? 'Caminhao (placa)' : 'Maquinario'}
           <select value={campos.veiculo} onChange={function (e) { atualizarCampo('veiculo', e.target.value); }}>
             <option value="">Selecione</option>
-            {cadastros.veiculos.map(function (v) {
+            {veiculosFiltrados().map(function (v) {
               var chave = chaveVeiculo(v.maquinario, v.placa);
               return <option key={chave} value={chave}>{rotuloVeiculo(v)}</option>;
             })}
