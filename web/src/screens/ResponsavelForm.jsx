@@ -206,7 +206,7 @@ export default function ResponsavelForm({ deviceConfig }) {
   }
 
   return (
-    <div className="tela">
+    <div className="tela tela-responsavel">
       <h1>Registrar abastecimento</h1>
       <p className="fazenda-fixa">Fazenda: <strong>{fazenda}</strong> — Responsavel: <strong>{responsavel}</strong></p>
       {veioDeEtiqueta && <p className="status">Maquinario preenchido pela etiqueta NFC. Confira e corrija se necessario.</p>}
