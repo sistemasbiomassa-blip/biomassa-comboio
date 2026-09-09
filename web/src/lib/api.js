@@ -38,3 +38,14 @@ export async function enviarAbastecimentos(records) {
   if (!json.ok) throw new Error(json.error || 'Erro ao enviar abastecimento(s)');
   return json;
 }
+
+export async function marcarLancado(id, lancado) {
+  var res = await fetch(BASE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ token: TOKEN, marcarLancado: { id: id, lancado: lancado } })
+  });
+  var json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Erro ao marcar lancamento');
+  return json;
+}

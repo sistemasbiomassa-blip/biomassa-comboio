@@ -1,16 +1,5 @@
 /**
  * API de Abastecimentos - Biomassa Chaparini
- *
- * Publicar como Web App (Implantar > Nova implantação > Aplicativo da Web):
- *   - Executar como: Eu (dono da planilha)
- *   - Quem pode acessar: Qualquer pessoa
- *
- * Depois de publicar, copie a URL do Web App e configure no PWA
- * (arquivo web/.env, chave VITE_APPS_SCRIPT_URL).
- *
- * IMPORTANTE: troque o valor de TOKEN abaixo por um valor secreto próprio
- * e use o mesmo valor em web/.env (VITE_API_TOKEN). Isso evita que alguém
- * que descubra a URL do Web App consiga gravar dados na planilha.
  */
 
 var TOKEN = 'b926c87c6cdf9c79d8ec0cac2d045c34346555ff9f986601';
@@ -22,14 +11,11 @@ var SHEET_PESSOAS = 'Pessoas';
 var ABASTECIMENTO_COLUNAS = [
   'ID', 'DATA', 'HORARIO', 'FAZENDA', 'MAQUINARIO', 'PLACA',
   'TIPO_COMBUSTIVEL', 'QUANTIDADE', 'HODOMETRO_HORIMETRO',
-  'PARCIAL_OU_COMPLETO', 'OPERADOR', 'RESPONSAVEL', 'ENVIADO_EM'
+  'PARCIAL_OU_COMPLETO', 'OPERADOR', 'RESPONSAVEL', 'ENVIADO_EM',
+  'LANCADO_NO_SISTEMA'
 ];
 
-// PLACA fica em branco para maquinario que nao tem placa (ex: trator).
 var MAQUINARIO_COLUNAS = ['FAZENDA', 'MAQUINARIO', 'PLACA'];
-
-// FUNCAO deve ser "MOTORISTA" (para quem dirige caminhao/veiculo com placa)
-// ou "OPERADOR" (para quem opera maquinario sem placa).
 var PESSOA_COLUNAS = ['FAZENDA', 'NOME', 'FUNCAO'];
 
 function getOrCreateSheet_(nome, colunas) {
@@ -40,6 +26,26 @@ function getOrCreateSheet_(nome, colunas) {
     sheet.appendRow(colunas);
     sheet.setFrozenRows(1);
   }
+  return sheet;
+}
+
+// Adiciona no final da linha de cabecalho qualquer coluna nova que ainda nao
+// exista, sem mexer nas colunas/dados que ja estao la. Usado para evoluir a
+// planilha (ex: LANCADO_NO_SISTEMA) sem quebrar planilhas ja em uso.
+function garantirColunas_(sheet, colunasEsperadas) {
+  var ultimaColuna = sheet.getLastColumn();
+  var headers = ultimaColuna > 0 ? sheet.getRange(1, 1, 1, ultimaColuna).getValues()[0] : [];
+  colunasEsperadas.forEach(function (nome) {
+    if (headers.indexOf(nome) === -1) {
+      sheet.getRange(1, headers.length + 1).setValue(nome);
+      headers.push(nome);
+    }
+  });
+}
+
+function getSheetAbastecimentos_() {
+  var sheet = getOrCreateSheet_(SHEET_ABASTECIMENTOS, ABASTECIMENTO_COLUNAS);
+  garantirColunas_(sheet, ABASTECIMENTO_COLUNAS);
   return sheet;
 }
 
@@ -81,6 +87,11 @@ function doPost(e) {
 
   if (!checkToken_(body.token)) {
     return jsonResponse_({ ok: false, error: 'token invalido' });
+  }
+
+  if (body.marcarLancado) {
+    var ok = marcarLancado_(body.marcarLancado.id, body.marcarLancado.lancado);
+    return jsonResponse_({ ok: true, atualizado: ok });
   }
 
   var registros = body.records || [];
@@ -160,7 +171,7 @@ function formatarCelula_(coluna, valor) {
 }
 
 function getFeed_(fazenda, desdeIso) {
-  var sheet = getOrCreateSheet_(SHEET_ABASTECIMENTOS, ABASTECIMENTO_COLUNAS);
+  var sheet = getSheetAbastecimentos_();
   var values = sheet.getDataRange().getValues();
   var linhas = values.slice(1);
 
@@ -191,7 +202,7 @@ function getFeed_(fazenda, desdeIso) {
 }
 
 function salvarAbastecimentos_(registros) {
-  var sheet = getOrCreateSheet_(SHEET_ABASTECIMENTOS, ABASTECIMENTO_COLUNAS);
+  var sheet = getSheetAbastecimentos_();
   var values = sheet.getDataRange().getValues();
   var idsExistentes = {};
   for (var i = 1; i < values.length; i++) {
@@ -223,12 +234,30 @@ function salvarAbastecimentos_(registros) {
   return { salvos: novasLinhas.length, duplicados: duplicados };
 }
 
+// Marca (ou desmarca) um abastecimento como ja lancado no sistema de gestao
+// de frotas, usado pelo analista. Fica gravado na planilha, entao aparece
+// igual pra qualquer analista, em qualquer aparelho.
+function marcarLancado_(id, lancado) {
+  if (!id) return false;
+  var sheet = getSheetAbastecimentos_();
+  var values = sheet.getDataRange().getValues();
+  var indiceColunaLancado = ABASTECIMENTO_COLUNAS.indexOf('LANCADO_NO_SISTEMA');
+
+  for (var i = 1; i < values.length; i++) {
+    if (values[i][0] === id) {
+      sheet.getRange(i + 1, indiceColunaLancado + 1).setValue(lancado ? 'SIM' : 'NAO');
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Rode esta função uma vez manualmente (Executar > setup) para criar
  * as abas com os cabeçalhos corretos antes do primeiro uso.
  */
 function setup() {
-  getOrCreateSheet_(SHEET_ABASTECIMENTOS, ABASTECIMENTO_COLUNAS);
+  getSheetAbastecimentos_();
   getOrCreateSheet_(SHEET_MAQUINARIOS, MAQUINARIO_COLUNAS);
   getOrCreateSheet_(SHEET_PESSOAS, PESSOA_COLUNAS);
 }
